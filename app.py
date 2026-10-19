@@ -1,5 +1,3 @@
-
-
 def load_events():
 
 
