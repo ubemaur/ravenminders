@@ -1,0 +1,275 @@
+{#- Event with a click-to-open details card. kind: "chip" (month cell) or "event" (day columns).
+    All cards share name="event-card", so opening one closes any other. -#}
+{% macro event_details(event, kind) -%}
+<details class="event-details {{ kind }} color-{{ event.color }}" name="event-card">
+  <summary class="{{ kind }}-summary">
+    {%- if kind == 'event' %}<span class="event-time">{{ event.time_range }}</span>{% endif -%}
+    <span class="event-title">{{ event.title }}</span>
+  </summary>
+  <div class="event-card">
+    <strong class="event-card-title">{{ event.title }}</strong>
+    <dl>
+      <dt>When</dt><dd>{{ event.date.strftime('%a, %b') }} {{ event.date.day }} · {{ event.time_range }}</dd>
+      {% if event.location %}<dt>Where</dt><dd>{{ event.location }}</dd>{% endif %}
+      {% if event.notes %}<dt>Notes</dt><dd>{{ event.notes }}</dd>{% endif %}
+    </dl>
+  </div>
+</details>
+{%- endmacro %}
+
+{%- macro chevron() -%}
+<svg class="chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+{%- endmacro -%}
+
+<!doctype html>
+<html lang="en" data-theme="{{ theme }}" data-bg="{{ bg }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ravenminders</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="brand">Ravenminders</h1>
+    <time class="clock" datetime="{{ now.isoformat(timespec='minutes') }}">
+      <span class="clock-time">{{ clock_time }}</span>
+      <span class="clock-date">{{ clock_date }}</span>
+    </time>
+    <div class="topbar-right">
+      <div class="swatch-group">
+        <span class="swatch-label">Accent</span>
+        <nav class="swatches" aria-label="Accent color">
+          {% for key, label in themes %}
+          <a class="swatch{% if key == theme %} is-active{% endif %}" data-theme="{{ key }}"
+             href="{{ link(theme=key) }}" title="{{ label }}" aria-label="{{ label }} accent"></a>
+          {% endfor %}
+        </nav>
+      </div>
+      <div class="swatch-group">
+        <span class="swatch-label">Background</span>
+        <nav class="swatches" aria-label="Background color">
+          {% for key, label in backgrounds %}
+          <a class="swatch swatch-bg{% if key == bg %} is-active{% endif %}" data-bg="{{ key }}"
+             href="{{ link(bg=key) }}" title="{{ label }}" aria-label="{{ label }} background"></a>
+          {% endfor %}
+        </nav>
+      </div>
+      <span class="logo-badge">
+        <img class="logo" src="{{ url_for('static', filename='img/carleton-logo-header.png') }}" alt="Carleton University">
+      </span>
+    </div>
+  </header>
+
+  <div class="app">
+
+    <div class="main-col">
+      <main class="calendar card">
+        <header class="calendar-header">
+          <h2 class="month-title">{{ title_main }}{% if title_sub %} <span>{{ title_sub }}</span>{% endif %}</h2>
+          <nav class="views" aria-label="View">
+            {% for key, label in views %}
+            <a class="view-btn{% if key == view %} is-active{% endif %}" href="{{ link(view=key) }}">{{ label }}</a>
+            {% endfor %}
+          </nav>
+          <nav class="month-nav">
+            {% if prev_date %}
+            <a class="btn btn-icon" href="{{ link(date=prev_date) }}" aria-label="Previous">&lsaquo;</a>
+            {% endif %}
+            <a class="btn" href="{{ link(date=today) }}">Today</a>
+            {% if next_date %}
+            <a class="btn btn-icon" href="{{ link(date=next_date) }}" aria-label="Next">&rsaquo;</a>
+            {% endif %}
+          </nav>
+        </header>
+
+        {% if view == 'month' %}
+        <div class="weekdays">
+          {% for name in day_names %}<div{% if loop.first or loop.last %} class="is-weekend"{% endif %}>{{ name }}</div>{% endfor %}
+        </div>
+
+        <div class="grid" style="--weeks: {{ weeks|length }}">
+          {% for week in weeks %}
+            {% for cell in week %}
+            <div class="day
+                        {%- if not cell.in_month %} is-outside{% endif %}
+                        {%- if cell.is_weekend %} is-weekend{% endif %}
+                        {%- if cell.is_today %} is-today{% endif %}
+                        {%- if cell.is_selected %} is-selected{% endif %}">
+              {#- covers the cell, so clicking empty space selects the day -#}
+              <a class="day-link" href="{{ link(date=cell.date) }}"
+                 aria-label="{{ cell.date.strftime('%A, %B') }} {{ cell.date.day }}"></a>
+              <div class="day-top">
+                <span class="day-number">{{ cell.date.day }}</span>
+                {% if cell.events|length > 2 %}
+                <span class="chip-more">+{{ cell.events|length - 2 }} more</span>
+                {% endif %}
+                <span class="day-add" aria-hidden="true">+</span>
+              </div>
+              {% if cell.events %}
+              <ul class="chips">
+                {% for event in cell.events[:2] %}
+                <li>{{ event_details(event, 'chip') }}</li>
+                {% endfor %}
+              </ul>
+              {% endif %}
+            </div>
+            {% endfor %}
+          {% endfor %}
+        </div>
+
+        {% else %}
+        <div class="columns" style="--cols: {{ columns|length }}">
+          {% for col in columns %}
+          <section class="column
+                          {%- if col.is_weekend %} is-weekend{% endif %}
+                          {%- if col.is_today %} is-today{% endif %}
+                          {%- if col.is_selected %} is-selected{% endif %}">
+            <a class="column-head" href="{{ link(date=col.date) }}">
+              <span class="column-dow">{{ col.date.strftime('%a') }}</span>
+              <span class="column-num">{{ col.date.day }}</span>
+            </a>
+            {% if col.events %}
+            <ul class="event-list column-events">
+              {% for event in col.events %}
+              <li>{{ event_details(event, 'event') }}</li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <p class="empty column-empty">No events</p>
+            {% endif %}
+          </section>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </main>
+
+      <section class="glance card" aria-label="Today at a glance">
+        <h2 class="greeting">Good <span class="greeting-part">{{ greeting_part }}</span>, {{ user_name }}</h2>
+        <div class="glance-grid">
+
+          <div class="tile">
+            <h3 class="tile-label">Up next</h3>
+            {% if up_next %}
+            <div class="up-next color-{{ up_next.color }}">
+              <strong class="up-next-title">{{ up_next.title }}</strong>
+              <span class="up-next-when">{{ up_next.when }}</span>
+              {% if up_next.location %}<span class="up-next-where">{{ up_next.location }}</span>{% endif %}
+            </div>
+            <p class="countdown" data-start="{{ up_next.start_iso }}"{% if not up_next.time %} data-all-day{% endif %}>{{ up_next.countdown }}</p>
+            {% else %}
+            <p class="empty">Nothing else coming up.</p>
+            {% endif %}
+          </div>
+
+          <div class="tile">
+            <h3 class="tile-label">Today's progress</h3>
+            <div class="progress-row">
+              <span>Tasks done</span>
+              <strong>{{ progress.done }} / {{ progress.total }}</strong>
+            </div>
+            <div class="xp-bar" role="progressbar" aria-label="Tasks done" aria-valuemin="0" aria-valuemax="{{ progress.total }}" aria-valuenow="{{ progress.done }}">
+              <div class="xp-fill" style="width: {{ progress.percent }}%"></div>
+            </div>
+            <div class="stats">
+              <div class="stat"><strong>+{{ progress.xp_today }}</strong><span>XP today</span></div>
+              <div class="stat"><strong>{{ progress.streak_days }} day{% if progress.streak_days != 1 %}s{% endif %}</strong><span>streak</span></div>
+            </div>
+          </div>
+
+          <div class="tile">
+            <h3 class="tile-label">This week</h3>
+            <div class="week-bars">
+              {% for bar in week_bars %}
+              <a class="week-bar{% if bar.is_today %} is-today{% endif %}" href="{{ link(date=bar.date) }}"
+                 title="{{ bar.label }}" aria-label="{{ bar.label }}">
+                <span class="bar-count">{{ bar.count }}</span>
+                <span class="bar-track"><span class="bar-fill" style="height: {{ bar.percent }}%"></span></span>
+                <span class="bar-day">{{ bar.letter }}</span>
+              </a>
+              {% endfor %}
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </div>
+
+    <aside class="sidebar">
+      <details class="card side-card timeline-card" data-card="timeline" open>
+        <summary class="side-summary">
+          <h2 class="side-title">
+            {{ selected.strftime('%A') }}, {{ selected.strftime('%B') }} {{ selected.day }}{% if is_today %} <span class="today-tag">&middot; Today</span>{% endif %}
+          </h2>
+          {{ chevron() }}
+        </summary>
+        <div class="timeline-body">
+          {% if all_day %}
+          <ul class="all-day">
+            {% for event in all_day %}
+            <li class="all-day-event color-{{ event.color }}">{{ event.title }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+          <div class="timeline-scroll" data-scroll-minute="{{ scroll_minute }}">
+            <div class="timeline" data-date="{{ selected.isoformat() }}">
+              {% for label in hour_labels %}
+              <div class="hour" style="--h: {{ loop.index0 }}"><span>{{ label }}</span></div>
+              {% endfor %}
+              <div class="timeline-events">
+                {% for block in blocks %}
+                <div class="block color-{{ block.color }}"
+                     style="--start: {{ block.start }}; --end: {{ block.end }}; --lane: {{ block.lane }}; --lanes: {{ block.lanes }}"
+                     title="{{ block.title }} ({{ block.time_range }})">
+                  <span class="block-title">{{ block.title }}</span>
+                  <span class="block-time">{{ block.time_range }}</span>
+                </div>
+                {% endfor %}
+              </div>
+              <div class="now-line" style="--now: {{ now_minute }}"{% if not is_today %} hidden{% endif %}></div>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details class="card side-card" data-card="tasks" open>
+        <summary class="side-summary">
+          <h2 class="side-title">Tasks <span class="side-count">{{ progress.done }}/{{ progress.total }}</span></h2>
+          {{ chevron() }}
+        </summary>
+        <ul class="task-list">
+          {% for task in tasks %}
+          <li class="task">
+            <input type="checkbox" id="task-{{ loop.index }}"{% if task.done %} checked{% endif %}>
+            <label for="task-{{ loop.index }}">{{ task.title }}</label>
+          </li>
+          {% endfor %}
+        </ul>
+      </details>
+
+      <details class="card side-card" data-card="pet" open>
+        <summary class="side-summary">
+          <h2 class="side-title">Pet</h2>
+          {{ chevron() }}
+        </summary>
+        <div class="pet">
+          <div class="pet-spot" aria-label="Pet placeholder">pet goes here</div>
+          <div class="pet-info">
+            <div class="pet-row">
+              <strong>{{ pet.name }}</strong>
+              <span>Lv {{ pet.level }}</span>
+            </div>
+            <div class="xp-bar" role="progressbar" aria-label="Pet XP" aria-valuemin="0" aria-valuemax="{{ pet.xp_max }}" aria-valuenow="{{ pet.xp }}">
+              <div class="xp-fill" style="width: {{ pet.xp_percent }}%"></div>
+            </div>
+            <div class="xp-label">{{ pet.xp }} / {{ pet.xp_max }} XP</div>
+          </div>
+        </div>
+      </details>
+    </aside>
+
+  </div>
+  <script src="{{ url_for('static', filename='js/ui.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/clock.js') }}" defer></script>
+</body>
+</html>

@@ -1,0 +1,933 @@
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap");
+
+/* ---------- Theme ---------- */
+:root {
+  /* surface colors (--bg, --card, ...) come from the [data-bg] blocks below,
+     --accent* from the [data-theme] blocks */
+  --text: #1f2333;
+  --muted: #6b6157;       /* >= 4.8:1 on every background, card and selected-day tint */
+  --on-accent: #fbf6f1;   /* text on accent */
+  --now-red: #d93025;     /* timeline "now" line; fixed so it stands out on every theme */
+
+  --blue: #3b82f6;
+  --green: #22a06b;
+  --orange: #f08c2e;
+  --pink: #e0558f;
+  --purple: #8b5cf6;
+
+  --radius: 14px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 2px rgba(20, 24, 40, 0.04), 0 4px 16px rgba(20, 24, 40, 0.06);
+  --gap: 16px;
+  --sidebar-width: 320px;
+  --day-height: clamp(80px, 11vh, 100px);
+}
+
+/* ---------- Color themes ----------
+   Set on <html data-theme="..."> for the page, and on each swatch so the
+   swatch shows its own theme's color. Accents keep >= 4.5:1 contrast with
+   the off-white header/button text. */
+[data-theme="velvet"] {
+  --accent: #7a0f1f; --accent-dark: #4f0913; --accent-light: #b3243a; --accent-soft: #f7e8ea;
+}
+[data-theme="burgundy"] {
+  --accent: #6b1631; --accent-dark: #430a1d; --accent-light: #9c3355; --accent-soft: #f6e8ed;
+}
+[data-theme="burnt-orange"] {
+  --accent: #a4460f; --accent-dark: #6e2c05; --accent-light: #d0692c; --accent-soft: #fbece2;
+}
+[data-theme="amber"] {
+  --accent: #8f6206; --accent-dark: #5c3e02; --accent-light: #c9930f; --accent-soft: #fbf2dc;
+}
+[data-theme="terracotta"] {
+  --accent: #a24a33; --accent-dark: #6c2c1c; --accent-light: #cc7357; --accent-soft: #f9ebe5;
+}
+[data-theme="rose"] {
+  --accent: #a3335a; --accent-dark: #6a1a37; --accent-light: #cf668b; --accent-soft: #fae9ef;
+}
+
+/* ---------- Page backgrounds ----------
+   Set on <html data-bg="...">, and on each background swatch.
+   --bg: page | --card: cards & calendar cells (a bit lighter than the page)
+   --card-muted: days outside the month | --hover, --border, --grid-line: matching warm tones */
+[data-bg="cream"] {
+  --bg: #f7f2e9; --card: #fdfaf4; --card-muted: #f9f5ee;
+  --hover: #f6f0e6; --border: #e9e1d4; --grid-line: #d5cbbb;
+}
+[data-bg="beige"] {
+  --bg: #efe7da; --card: #f9f4ec; --card-muted: #f3ede3;
+  --hover: #f1e9dc; --border: #e2d8c8; --grid-line: #cdc0ac;
+}
+[data-bg="blush"] {
+  --bg: #f7ebe8; --card: #fdf6f4; --card-muted: #f8efec;
+  --hover: #f6ebe8; --border: #ecdcd8; --grid-line: #d8c4bf;
+}
+[data-bg="sand"] {
+  --bg: #f3e4d4; --card: #fbf3ea; --card-muted: #f6ebdf;
+  --hover: #f4e8db; --border: #e8d7c5; --grid-line: #d3bfa9;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+ul { list-style: none; margin: 0; padding: 0; }
+a { color: inherit; text-decoration: none; }
+
+/* ---------- Header bar ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  padding: 14px 24px;
+  /* velvet: soft highlight in the middle, darker toward edges and bottom */
+  background:
+    radial-gradient(ellipse 70% 140% at 40% 0%, rgba(255, 255, 255, 0.08), transparent 60%),
+    radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.25) 100%),
+    linear-gradient(180deg, var(--accent) 0%, var(--accent-dark) 100%);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.3), 0 2px 10px rgba(79, 9, 19, 0.25);
+}
+
+.brand {
+  margin: 0;
+  color: var(--on-accent);
+  font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+/* Live clock: centered in the space between the title and the swatches */
+.clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 auto;
+  padding: 0 16px;
+  color: var(--on-accent);
+  line-height: 1.15;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.clock-time {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.clock-date { font-size: 11px; opacity: 0.8; }
+
+.swatch-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.swatch-group + .swatch-group {
+  padding-left: 18px;
+  border-left: 1px solid rgba(251, 246, 241, 0.25);
+}
+.swatch-label {
+  color: var(--on-accent);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.swatches { display: flex; gap: 8px; }
+.swatch {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(251, 246, 241, 0.7);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s;
+}
+.swatch:hover { transform: scale(1.15); }
+.swatch.is-active {
+  border-color: var(--on-accent);
+  box-shadow: 0 0 0 2px var(--accent-dark), 0 0 0 4px var(--on-accent);
+}
+
+/* Background swatches: square, filled with that option's page color */
+.swatch-bg {
+  border-color: rgba(0, 0, 0, 0.25);
+  border-width: 1px;
+  border-radius: 4px;
+  background: var(--bg);
+}
+
+/* Light badge so the dark logo stays visible on every theme color */
+.logo-badge {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--on-accent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+.logo { display: block; height: 100%; width: auto; }
+
+/* ---------- Layout ---------- */
+.app {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr var(--sidebar-width);
+  align-items: stretch;   /* sidebar fills the height; the calendar card opts out below */
+  gap: var(--gap);
+  padding: var(--gap);
+}
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* ---------- Calendar ---------- */
+/* Left column: calendar + "Today at a glance" */
+.main-col {
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  min-width: 0;
+}
+
+.calendar {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 20px;
+}
+
+.calendar-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin-bottom: 16px;
+}
+
+.views {
+  display: flex;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--hover);
+}
+.view-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.15s, color 0.15s;
+}
+.view-btn:hover { color: var(--accent); }
+.view-btn.is-active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.month-nav { margin-left: auto; }
+
+.month-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+.month-title span { color: var(--muted); font-weight: 500; }
+
+.month-nav { display: flex; gap: 8px; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  font-weight: 600;
+  color: var(--accent);
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn:hover { background: var(--accent-soft); border-color: var(--accent-light); }
+.btn-icon { width: 34px; padding: 0; font-size: 20px; }
+
+/* "Today" button: solid red */
+.month-nav .btn:not(.btn-icon) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.month-nav .btn:not(.btn-icon):hover {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+}
+
+.weekdays,
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.weekdays div {
+  padding: 0 8px 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* No overflow: hidden here or on .day, so event cards can float over neighbouring
+   cells; the corner cells round themselves instead. */
+.grid {
+  grid-template-rows: repeat(var(--weeks), var(--day-height));
+  border-top: 1px solid var(--grid-line);
+  border-left: 1px solid var(--grid-line);
+  border-radius: var(--radius-sm);
+}
+.grid > .day:first-child          { border-top-left-radius: var(--radius-sm); }
+.grid > .day:nth-child(7)         { border-top-right-radius: var(--radius-sm); }
+.grid > .day:nth-last-child(7)    { border-bottom-left-radius: var(--radius-sm); }
+.grid > .day:last-child           { border-bottom-right-radius: var(--radius-sm); }
+
+.day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  min-height: 0;
+  padding: 5px;
+  border-right: 1px solid var(--grid-line);
+  border-bottom: 1px solid var(--grid-line);
+  transition: background 0.15s;
+}
+/* order matters: weekend < outside < hover < selected */
+.day.is-weekend { background: color-mix(in srgb, var(--card) 88%, var(--grid-line)); }
+.day.is-outside { background: var(--card-muted); }
+.day:hover { background: var(--hover); }
+.day.is-selected { background: var(--accent-soft); }
+.day.is-outside .day-number,
+.day.is-outside .chip-summary { opacity: 0.45; }
+
+/* Invisible link over the whole cell: clicking empty space selects the day.
+   The number row and chips sit above it; chips stay clickable. */
+.day-link {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.day-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.day-top {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.day-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 13px;
+}
+.day.is-today .day-number,
+.column.is-today .column-num {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent),
+    0 0 12px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+/* "+N more" sits beside the day number so it isn't cut off in short cells */
+.chip-more {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* "+" on hover (not functional yet) */
+.day-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.15s, transform 0.15s;
+}
+.chip-more + .day-add { margin-left: 0; }
+.day:hover .day-add { opacity: 1; transform: scale(1); }
+
+.chips {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  pointer-events: none;   /* gaps fall through to the day link... */
+}
+.chips > li { min-width: 0; pointer-events: auto; }   /* ...chips don't */
+
+/* ---------- Event details (chips and column events) ---------- */
+.event-details { position: relative; }
+.event-details > summary { list-style: none; cursor: pointer; }
+.event-details > summary::-webkit-details-marker { display: none; }
+.event-details > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.chip-summary {
+  display: block;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--c);
+  background: color-mix(in srgb, var(--c) 14%, var(--card));
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.chip-summary:hover,
+.chip[open] > .chip-summary {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--c) 22%, var(--card));
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--c) 30%, transparent);
+}
+
+.event-card {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 240px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--c);
+  border-radius: 8px;
+  background: var(--card);
+  box-shadow: 0 10px 28px rgba(40, 25, 15, 0.18);
+  color: var(--text);
+  font-size: 12px;
+  white-space: normal;
+}
+/* keep cards inside the calendar: open leftward in the last two columns, upward in the last row */
+.grid > .day:nth-child(7n) .event-card,
+.grid > .day:nth-child(7n - 1) .event-card { left: auto; right: 0; }
+.grid > .day:nth-last-child(-n + 7) .event-card { top: auto; bottom: calc(100% + 4px); }
+
+.event-card-title { display: block; margin-bottom: 6px; font-size: 13px; }
+.event-card dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 10px;
+  margin: 0;
+}
+.event-card dt { color: var(--muted); font-weight: 600; }
+.event-card dd { margin: 0; overflow-wrap: anywhere; }
+
+/* ---------- Day / 3-day / week columns ---------- */
+.columns {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  height: calc(var(--day-height) * 5 + 24px);
+  border-top: 1px solid var(--grid-line);
+  border-left: 1px solid var(--grid-line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--grid-line);
+  border-bottom: 1px solid var(--grid-line);
+}
+.column.is-weekend { background: color-mix(in srgb, var(--card) 88%, var(--grid-line)); }
+.column.is-selected { background: var(--accent-soft); }
+
+.column-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--grid-line);
+  transition: background 0.15s;
+}
+.column-head:hover { background: var(--hover); }
+.column-dow {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.column-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.column-events {
+  flex: 1;
+  min-height: 0;
+  padding: 8px;
+  overflow-y: auto;
+}
+.column-empty { padding: 10px; font-size: 13px; }
+
+/* Column events open their card inline (the list scrolls, so it can't float) */
+.event-summary {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  border-left: 3px solid var(--c);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--c) 9%, var(--card));
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.event-summary:hover,
+.event[open] > .event-summary {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--c) 15%, var(--card));
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--c) 25%, transparent);
+}
+.event > .event-card {
+  position: static;
+  width: auto;
+  margin-top: 4px;
+  box-shadow: none;
+}
+
+/* Event colors: each sets --c, used by chips and the sidebar list */
+.color-blue   { --c: var(--blue); }
+.color-green  { --c: var(--green); }
+.color-orange { --c: var(--orange); }
+.color-pink   { --c: var(--pink); }
+.color-purple { --c: var(--purple); }
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  min-height: 0;
+}
+
+/* Collapsible cards: <details class="side-card"> with the heading in <summary> */
+.side-card {
+  --summary-h: 48px;
+  flex: none;
+}
+.side-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: var(--summary-h);
+  padding: 0 14px 0 20px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  list-style: none;
+  transition: background 0.15s;
+}
+.side-summary::-webkit-details-marker { display: none; }
+.side-summary:hover { background: var(--hover); }
+.side-summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.side-card[open] > .side-summary { border-radius: var(--radius) var(--radius) 0 0; }
+
+.side-title {
+  margin: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.side-count { margin-left: 4px; color: var(--muted); font-size: 13px; font-weight: 500; }
+.today-tag { color: var(--accent); }
+
+/* arrow points right when closed, down when open */
+.chevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  transform: rotate(-90deg);
+  transition: transform 0.2s;
+}
+.side-card[open] > .side-summary .chevron { transform: rotate(0deg); }
+
+.side-card > .task-list { padding: 0 14px 14px; }
+
+/* ---------- Day timeline ---------- */
+/* Open: fills the leftover sidebar height. Its body is absolutely positioned
+   under the summary, so the 24h timeline scrolls instead of growing the card. */
+.timeline-card { overflow: hidden; }
+.timeline-card[open] {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 260px;
+}
+.timeline-body {
+  position: absolute;
+  top: var(--summary-h);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.all-day {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 12px 10px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.all-day-event {
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 5px;
+  color: var(--c);
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timeline-scroll {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Absolutely positioned so its 24h height scrolls instead of stretching the sidebar */
+.timeline {
+  --hour-h: 48px;    /* height of one hour */
+  --pad: 10px;       /* room above 12 AM and below midnight */
+  --label-w: 52px;   /* hour label column */
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(24 * var(--hour-h) + 2 * var(--pad));
+}
+
+.hour {
+  position: absolute;
+  top: calc(var(--pad) + var(--h) * var(--hour-h));
+  left: var(--label-w);
+  right: 0;
+  height: var(--hour-h);
+  border-top: 1px solid var(--border);
+}
+.timeline::after {   /* closing line at midnight */
+  content: "";
+  position: absolute;
+  bottom: var(--pad);
+  left: var(--label-w);
+  right: 0;
+  border-top: 1px solid var(--border);
+}
+.hour span {
+  position: absolute;
+  top: -0.7em;
+  right: calc(100% + 8px);
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.timeline-events {
+  position: absolute;
+  top: var(--pad);
+  bottom: var(--pad);
+  left: calc(var(--label-w) + 2px);
+  right: 10px;
+}
+
+.block {
+  position: absolute;
+  top: calc(var(--start) * var(--hour-h) / 60);
+  left: calc(100% * var(--lane) / var(--lanes));
+  width: calc(100% / var(--lanes) - 2px);
+  height: max(calc((var(--end) - var(--start)) * var(--hour-h) / 60 - 2px), 18px);
+  display: flex;
+  flex-direction: column;
+  padding: 2px 6px;
+  border-left: 3px solid var(--c);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--c) 16%, var(--card));
+  font-size: 12px;
+  line-height: 1.25;
+  overflow: hidden;
+}
+.block-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.block-time { color: var(--muted); font-size: 11px; white-space: nowrap; }
+
+.now-line {
+  position: absolute;
+  z-index: 2;
+  top: calc(var(--pad) + var(--now) * var(--hour-h) / 60 - 1px);
+  left: var(--label-w);
+  right: 0;
+  height: 2px;
+  background: var(--now-red);
+  pointer-events: none;
+}
+.now-line::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--now-red);
+}
+
+.event-list { display: flex; flex-direction: column; gap: 8px; }
+.event-time { color: var(--muted); font-size: 12px; font-weight: 600; }
+.event-title { font-weight: 500; }
+
+.empty { margin: 0; color: var(--muted); }
+
+.task-list { display: flex; flex-direction: column; gap: 4px; }
+.task {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  border-radius: 6px;
+}
+.task:hover { background: var(--hover); }
+.task input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.task label { flex: 1; cursor: pointer; }
+.task input:checked + label {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+/* ---------- Pet corner ---------- */
+.pet {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 14px 14px;
+}
+
+.pet-spot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  border: 2px dashed var(--grid-line);
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.pet-info { flex: 1; min-width: 0; }
+.pet-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.pet-row span { color: var(--accent); font-weight: 700; }
+
+.xp-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+.xp-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-light));
+}
+.xp-label { margin-top: 6px; color: var(--muted); font-size: 12px; }
+
+/* ---------- Today at a glance ---------- */
+.glance { padding: 18px 20px 20px; }
+
+.greeting {
+  margin: 0 0 14px;
+  font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+  font-size: 22px;
+  font-weight: 700;
+}
+.greeting-part { color: var(--accent); }
+
+.glance-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--card) 55%, var(--bg));
+}
+.tile-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.up-next {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--c);
+}
+.up-next-title { overflow: hidden; font-size: 15px; white-space: nowrap; text-overflow: ellipsis; }
+.up-next-when,
+.up-next-where { color: var(--muted); font-size: 12px; }
+.countdown {
+  align-self: flex-start;
+  margin: auto 0 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.progress-row { display: flex; justify-content: space-between; font-size: 13px; }
+.stats { display: flex; gap: 8px; margin-top: auto; }
+.stat {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--card);
+}
+.stat strong { color: var(--accent); font-size: 16px; }
+.stat span { color: var(--muted); font-size: 11px; }
+
+.week-bars {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+.week-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.week-bar:hover { background: var(--hover); }
+.bar-track {
+  position: relative;
+  flex: 1;
+  width: 12px;
+  min-height: 56px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+.bar-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--accent) 45%, var(--card));
+}
+.week-bar.is-today .bar-fill { background: var(--accent); }
+.bar-count,
+.bar-day { color: var(--muted); font-size: 11px; font-weight: 600; }
+.week-bar.is-today .bar-day { color: var(--accent); font-weight: 800; }
+
+/* ---------- Page transitions ----------
+   Theme/background changes reload the page; this crossfades between pages
+   (Chrome, Edge, Safari; other browsers just load normally). */
+@view-transition { navigation: auto; }
+::view-transition-group(root) { animation-duration: 200ms; }
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+}
+
+/* ---------- Smaller laptops ---------- */
+@media (max-width: 1100px) {
+  :root { --sidebar-width: 280px; --gap: 12px; }
+  .chip-summary { font-size: 11px; }
+}
